@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Интерактивная карта распада СССР</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a237e 0%, #283593 50%, #3949ab 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(to right, #d32f2f, #b71c1c);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .logo {
+            position: absolute;
+            top: 20px;
+            left: 25px;
+            font-size: 2rem;
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        
+        .main-content {
+            display: flex;
+            min-height: 700px;
+        }
+        
+        .map-container {
+            flex: 3;
+            position: relative;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+            z-index: 1;
+        }
+        
+        .timeline-panel {
+            flex: 1;
+            background: #f5f5f5;
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 3px solid #d32f2f;
+        }
+        
+        .timeline-header {
+            background: #d32f2f;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .year-slider-container {
+            padding: 20px 10px;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .year-display {
+            text-align: center;
+            font-size: 2.2rem;
+            color: #d32f2f;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 10px;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #1976d2, #d32f2f);
+            border-radius: 5px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 25px;
+            height: 25px;
+            background: #ffeb3b;
+            border: 3px solid #d32f2f;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        
+        .events-list {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .event-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 4px solid #1976d2;
+            background: #e3f2fd;
+            border-radius: 0 8px 8px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .event-item:hover {
+            transform: translateX(5px);
+            background: #bbdefb;
+        }
+        
+        .event-item.active {
+            border-left-color: #d32f2f;
+            background: #ffebee;
+        }
+        
+        .event-year {
+            font-weight: bold;
+            color: #d32f2f;
+        }
+        
+        .event-title {
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .qr-section {
+            background: white;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        #qrcode {
+            display: inline-block;
+            padding: 10px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #263238;
+            color: white;
+            border-radius: 0 0 20px 20px;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .timeline-panel {
+                border-left: none;
+                border-top: 3px solid #d32f2f;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <i class="fas fa-flag"></i>
+            </div>
+            <h1>Интерактивная карта распада СССР</h1>
+            <p>Проект "Перестройка и распад Советского Союза" | Екатеринбургское СВУ, 2025</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="map-container">
+                <div id="map"></div>
+                
+                <div class="legend">
+                    <h4 style="margin-bottom: 10px;">Легенда:</h4>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #d32f2f;"></div>
+                        <span>Ключевые события</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #1976d2;"></div>
+                        <span>Республики СССР</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #388e3c;"></div>
+                        <span>Экономические кризисы</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f57c00;"></div>
+                        <span>Национальные движения</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="timeline-panel">
+                <div class="timeline-header">
+                    <h2><i class="fas fa-history"></i> Хронология событий</h2>
+                    <p>1985-1991 гг.</p>
+                </div>
+                
+                <div class="year-slider-container">
+                    <div class="year-display" id="current-year">1985</div>
+                    <input type="range" id="year-slider" min="1985" max="1991" value="1985" step="1">
+                </div>
+                
+                <div class="events-list" id="events-container">
+                    <!-- События будут добавлены через JavaScript -->
+                </div>
+                
+                <div class="qr-section">
+                    <h3>Доступ к карте по QR-коду</h3>
+                    <p>Отсканируйте для сохранения ссылки</p>
+                    <div id="qrcode"></div>
+                    <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                        Проект выполнен: Чаурин К.Н., суворовец 3 взвода 6 роты
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>ФГКОУ «Екатеринбургское суворовское военное училище» Минобороны РФ</p>
+            <p>© 2025. Все права защищены. Материалы проекта могут использоваться в образовательных целях.</p>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        // Инициализация карты
+        const map = L.map('map').setView([55.7558, 37.6173], 3);
+        
+        // Добавление базового слоя карты
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors, © CARTO'
+        }).addTo(map);
+
+        // Данные для событий по годам
+        const timelineEvents = {
+            1985: [
+                {id: 1, title: "М.С. Горбачёв становится Генсеком", desc: "Начало политики перестройки", lat: 55.7558, lng: 37.6173, type: "key"},
+                {id: 2, title: "Антиалкогольная кампания", desc: "Снижение производства алкоголя на 30%", lat: 55.7558, lng: 37.6173, type: "economic"}
+            ],
+            1986: [
+                {id: 3, title: "XXVII съезд КПСС", desc: "Курс на ускорение социально-экономического развития", lat: 55.7558, lng: 37.6173, type: "key"},
+                {id: 4, title: "Чернобыльская катастрофа", desc: "Крупнейшая техногенная авария", lat: 51.3890, lng: 30.0994, type: "economic"},
+                {id: 5, title: "Начало гласности", desc: "Ослабление цензуры в СМИ", lat: 59.9343, lng: 30.3351, type: "key"}
+            ],
+            1987: [
+                {id: 6, title: "Закон о государственном предприятии", desc: "Введение хозрасчёта", lat: 55.7558, lng: 37.6173, type: "economic"},
+                {id: 7, title: "Первые массовые митинги", desc: "Демонстрации в Прибалтике", lat: 56.9496, lng: 24.1052, type: "national"},
+                {id: 8, title: "Политика «нового мышления»", desc: "Разрядка в международных отношениях", lat: 55.7558, lng: 37.6173, type: "key"}
+            ],
+            1988: [
+                {id: 9, title: "XIX партконференция", desc: "Начало политической реформы", lat: 55.7558, lng: 37.6173, type: "key"},
+                {id: 10, title: "Нагорно-Карабахский конфликт", desc: "Начало межнационального противостояния", lat: 39.8262, lng: 46.7536, type: "national"},
+                {id: 11, title: "Создание Народных фронтов", desc: "В Прибалтике и других республиках", lat: 54.6872, lng: 25.2797, type: "national"}
+            ],
+            1989: [
+                {id: 12, title: "Вывод войск из Афганистана", desc: "Окончание 10-летней войны", lat: 34.5553, lng: 69.2075, type: "key"},
+                {id: 13, title: "Съезд народных депутатов", desc: "Первые демократические выборы", lat: 55.7558, lng: 37.6173, type: "key"},
+                {id: 14, title: "Падение Берлинской стены", desc: "Символ краха социалистического блока", lat: 52.5200, lng: 13.4050, type: "key"},
+                {id: 15, title: "Шахтёрские забастовки", desc: "Крупнейшие стачки в Воркуте и Донбассе", lat: 48.0159, lng: 37.8028, type: "economic"}
+            ],
+            1990: [
+                {id: 16, title: "«Парад суверенитетов»", desc: "Республики принимают декларации о суверенитете", lat: 55.7558, lng: 37.6173, type: "national"},
+                {id: 17, title: "Избрание Ельцина", desc: "Председателем Верховного Совета РСФСР", lat: 55.7558, lng: 37.6173, type: "key"},
+                {id: 18, title: "Экономический кризис", desc: "Гиперинфляция, дефицит товаров", lat: 55.7558, lng: 37.6173, type: "economic"},
+                {id: 19, title: "Референдум о независимости", desc: "В Литве, Латвии, Эстонии", lat: 54.6872, lng: 25.2797, type: "national"}
+            ],
+            1991: [
+                {id: 20, title: "Августовский путч", desc: "Попытка государственного переворота", lat: 55.7558, lng: 37.6173, type: "key"},
+                {id: 21, title: "Запрет КПСС", desc: "Указ президента РСФСР", lat: 55.7558, lng: 37.6173, type: "key"},
+                {id: 22, title: "Беловежские соглашения", desc: "Создание СНГ, роспуск СССР", lat: 52.5705, lng: 25.1780, type: "key"},
+                {id: 23, title: "Отставка Горбачёва", desc: "25 декабря 1991 года", lat: 55.7558, lng: 37.6173, type: "key"}
+            ]
+        };
+
+        // Цвета для разных типов событий
+        const eventColors = {
+            "key": "#d32f2f",      // Красный - ключевые события
+            "economic": "#388e3c",  // Зеленый - экономические
+            "national": "#f57c00"   // Оранжевый - национальные
+        };
+
+        // Иконки для маркеров
+        const eventIcons = {
+            "key": L.divIcon({
+                html: '<i class="fas fa-star" style="color: #d32f2f; font-size: 24px;"></i>',
+                iconSize: [24, 24],
+                className: 'custom-icon'
+            }),
+            "economic": L.divIcon({
+                html: '<i class="fas fa-chart-line" style="color: #388e3c; font-size: 20px;"></i>',
+                iconSize: [20, 20],
+                className: 'custom-icon'
+            }),
+            "national": L.divIcon({
+                html: '<i class="fas fa-users" style="color: #f57c00; font-size: 20px;"></i>',
+                iconSize: [20, 20],
+                className: 'custom-icon'
+            })
+        };
+
+        let currentMarkers = [];
+        let currentYear = 1985;
+
+        // Функция обновления карты по году
+        function updateMapForYear(year) {
+            // Удаляем старые маркеры
+            currentMarkers.forEach(marker => map.removeLayer(marker));
+            currentMarkers = [];
+            
+            // Добавляем новые маркеры для выбранного года
+            if (timelineEvents[year]) {
+                timelineEvents[year].forEach(event => {
+                    const marker = L.marker([event.lat, event.lng], {
+                        icon: eventIcons[event.type]
+                    }).addTo(map);
+                    
+                    marker.bindPopup(`
+                        <div style="padding: 10px;">
+                            <h3 style="margin: 0 0 10px 0; color: ${eventColors[event.type]}">${event.title}</h3>
+                            <p><strong>${year} год</strong></p>
+                            <p>${event.desc}</p>
+                            <div style="display: flex; align-items: center; margin-top: 10px;">
+                                <div style="width: 12px; height: 12px; background: ${eventColors[event.type]}; border-radius: 50%; margin-right: 8px;"></div>
+                                <span style="font-size: 0.9em; color: #666;">
+                                    ${event.type === 'key' ? 'Ключевое событие' : 
+                                      event.type === 'economic' ? 'Экономический кризис' : 
+                                      'Национальное движение'}
+                                </span>
+                            </div>
+                        </div>
+                    `);
+                    
+                    currentMarkers.push(marker);
+                });
+            }
+            
+            // Центрируем карту на территории бывшего СССР
+            map.setView([55.7558, 37.6173], 3);
+            
+            // Обновляем список событий
+            updateEventsList(year);
+        }
+
+        // Функция обновления списка событий
+        function updateEventsList(year) {
+            const eventsContainer = document.getElementById('events-container');
+            eventsContainer.innerHTML = '';
+            
+            if (timelineEvents[year]) {
+                timelineEvents[year].forEach(event => {
+                    const eventElement = document.createElement('div');
+                    eventElement.className = 'event-item';
+                    eventElement.innerHTML = `
+                        <div class="event-year">${year} год</div>
+                        <div class="event-title">${event.title}</div>
+                        <div style="font-size: 0.9em; color: #666;">${event.desc}</div>
+                    `;
+                    
+                    eventElement.addEventListener('click', () => {
+                        map.setView([event.lat, event.lng], 6);
+                        currentMarkers.forEach(m => {
+                            if (m.getLatLng().lat === event.lat && m.getLatLng().lng === event.lng) {
+                                m.openPopup();
+                            }
+                        });
+                    });
+                    
+                    eventsContainer.appendChild(eventElement);
+                });
+            }
+        }
+
+        // Обработчик слайдера
+        const yearSlider = document.getElementById('year-slider');
+        const currentYearDisplay = document.getElementById('current-year');
+        
+        yearSlider.addEventListener('input', function() {
+            currentYear = parseInt(this.value);
+            currentYearDisplay.textContent = currentYear;
+            updateMapForYear(currentYear);
+        });
+
+        // Генерация QR-кода
+        function generateQRCode() {
+            const currentUrl = window.location.href;
+            const qrcodeContainer = document.getElementById('qrcode');
+            
+            QRCode.toCanvas(qrcodeContainer, currentUrl, {
+                width: 180,
+                height: 180,
+                colorDark: "#d32f2f",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            }, function(error) {
+                if (error) console.error(error);
+            });
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            updateMapForYear(1985);
+            generateQRCode();
+            
+            // Добавляем границы СССР
+            const ussrBounds = L.polygon([
+                [70.0, 20.0],  // Северо-запад
+                [70.0, 190.0], // Северо-восток
+                [35.0, 190.0], // Юго-восток
+                [35.0, 20.0]   // Юго-запад
+            ], {
+                color: '#1976d2',
+                weight: 2,
+                opacity: 0.5,
+                fillOpacity: 0.1,
+                fillColor: '#1976d2'
+            }).addTo(map);
+            
+            ussrBounds.bindPopup("<b>Территория СССР</b><br>до 1991 года");
+        });
+
+        // Добавляем информацию о республиках при клике
+        const republics = [
+            {name: "РСФСР", capital: "Москва", lat: 55.7558, lng: 37.6173},
+            {name: "Украинская ССР", capital: "Киев", lat: 50.4501, lng: 30.5234},
+            {name: "Белорусская ССР", capital: "Минск", lat: 53.9045, lng: 27.5615},
+            {name: "Казахская ССР", capital: "Алма-Ата", lat: 43.2220, lng: 76.8512},
+            {name: "Узбекская ССР", capital: "Ташкент", lat: 41.2995, lng: 69.2401},
+            {name: "Литовская ССР", capital: "Вильнюс", lat: 54.6872, lng: 25.2797},
+            {name: "Латвийская ССР", capital: "Рига", lat: 56.9496, lng: 24.1052},
+            {name: "Эстонская ССР", capital: "Таллин", lat: 59.4370, lng: 24.7536}
+        ];
+
+        republics.forEach(republic => {
+            L.circleMarker([republic.lat, republic.lng], {
+                color: '#1976d2',
+                fillColor: '#1976d2',
+                fillOpacity: 0.3,
+                radius: 8
+            }).addTo(map).bindPopup(`
+                <b>${republic.name}</b><br>
+                Столица: ${republic.capital}<br>
+                Независимость: 1991 г.
+            `);
+        });
+    </script>
+</body>
+</html>
